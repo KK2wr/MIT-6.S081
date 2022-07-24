@@ -655,3 +655,18 @@ procdump(void)
     printf("\n");
   }
 }
+
+uint64
+active_nproc(void)
+{
+  int i;
+  uint64 cnt = 0;
+  for (i = 0; i < NPROC; i++)
+  {
+    if (proc[i].state != UNUSED)
+    {
+      cnt++;
+    }
+  }
+  return cnt;
+}
