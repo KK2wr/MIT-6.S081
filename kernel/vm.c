@@ -106,10 +106,8 @@ walkaddr(pagetable_t pagetable, uint64 va)
   pte = walk(pagetable, va, 0);
   if(pte == 0 || (*pte & PTE_V) == 0 || (*pte & PTE_U) == 0)
   {
-    printf("22\n");
     if (va <= myproc()->sz && !(va < PGROUNDDOWN(myproc()->trapframe->sp) && va > PGROUNDDOWN(myproc()->trapframe->sp) - PGSIZE))
     {
-      printf("11\n");
       char *mem;
       mem = kalloc();
       memset(mem, 0, PGSIZE);
