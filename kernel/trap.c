@@ -49,8 +49,29 @@ usertrap(void)
   
   // save user program counter.
   p->trapframe->epc = r_sepc();
-  
-  if(r_scause() == 8){
+  if(r_scause() == 13 || r_scause() == 15)
+  {
+    uint64 va_fault = r_stval();
+    if (va_fault <= p->sz && !(va_fault < PGROUNDDOWN(p->trapframe->sp) && va_fault > PGROUNDDOWN(p->trapframe->sp) - PGSIZE))
+    {
+      char *mem;
+      mem = kalloc();
+      memset(mem, 0, PGSIZE);
+      uint64 va = PGROUNDDOWN(va_fault);
+      if(mappages(p->pagetable, va, PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0){
+        kfree(mem);
+        printf("lazy alloc failed\n");
+        p->killed = 1;
+        }
+    }
+    else
+    {
+      printf("lazy allocate: access illegal address!\n");
+      p->killed = 1;
+    }
+  }
+
+  else if(r_scause() == 8){
     // system call
 
     if(p->killed)

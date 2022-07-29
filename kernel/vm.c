@@ -5,6 +5,8 @@
 #include "riscv.h"
 #include "defs.h"
 #include "fs.h"
+#include "spinlock.h"
+#include "proc.h"
 
 /*
  * the kernel's page table.
@@ -91,6 +93,7 @@ walk(pagetable_t pagetable, uint64 va, int alloc)
 // Look up a virtual address, return the physical address,
 // or 0 if not mapped.
 // Can only be used to look up user pages.
+
 uint64
 walkaddr(pagetable_t pagetable, uint64 va)
 {
@@ -101,12 +104,23 @@ walkaddr(pagetable_t pagetable, uint64 va)
     return 0;
 
   pte = walk(pagetable, va, 0);
-  if(pte == 0)
-    return 0;
-  if((*pte & PTE_V) == 0)
-    return 0;
-  if((*pte & PTE_U) == 0)
-    return 0;
+  if(pte == 0 || (*pte & PTE_V) == 0 || (*pte & PTE_U) == 0)
+  {
+    printf("22\n");
+    if (va <= myproc()->sz && !(va < PGROUNDDOWN(myproc()->trapframe->sp) && va > PGROUNDDOWN(myproc()->trapframe->sp) - PGSIZE))
+    {
+      printf("11\n");
+      char *mem;
+      mem = kalloc();
+      memset(mem, 0, PGSIZE);
+      if(mappages(myproc()->pagetable, PGROUNDDOWN(va), PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0){
+        kfree(mem);
+        return 0;
+        }
+      return (uint64)mem;
+    }
+    else return 0;
+  }
   pa = PTE2PA(*pte);
   return pa;
 }
@@ -181,9 +195,11 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
 
   for(a = va; a < va + npages*PGSIZE; a += PGSIZE){
     if((pte = walk(pagetable, a, 0)) == 0)
-      panic("uvmunmap: walk");
+      //panic("uvmunmap: walk");
+      continue;
     if((*pte & PTE_V) == 0)
-      panic("uvmunmap: not mapped");
+      //panic("uvmunmap: not mapped");
+      continue;
     if(PTE_FLAGS(*pte) == PTE_V)
       panic("uvmunmap: not a leaf");
     if(do_free){
@@ -315,9 +331,11 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
-      panic("uvmcopy: pte should exist");
+      //panic("uvmcopy: pte should exist");
+      continue;
     if((*pte & PTE_V) == 0)
-      panic("uvmcopy: page not present");
+      continue;
+      //panic("uvmcopy: page not present");
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
     if((mem = kalloc()) == 0)
