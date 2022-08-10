@@ -106,8 +106,6 @@ kalloc(void)
       if (stealpages == 0) break;
     }
   }
-
-
   r = kmem[cpu].freelist;
   if(r)
     kmem[cpu].freelist = r->next;
